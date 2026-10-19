@@ -1,0 +1,42 @@
+name: vm2api-production
+services:
+  vm2api:
+    image: ${VM2API_IMAGE:?immutable image required}
+    container_name: vm2api
+    restart: unless-stopped
+    init: true
+    network_mode: host
+    cap_add: [NET_ADMIN, NET_RAW]
+    cpus: 1.0
+    mem_limit: 1536m
+    memswap_limit: 1536m
+    pids_limit: 256
+    env_file: /opt/vm2api/.env
+    environment:
+      HOST: 127.0.0.1
+      PORT: 3187
+      PUBLIC_BASE_URL: https://vm2api.motion-cover.com
+      VM2API_CONTAINER_NAME: vm2api
+      VM2API_HOST_ROOT: /opt/vm2api
+      KIN_AUTO_SYNC_WRAP: '0'
+      NODE_OPTIONS: --max-old-space-size=1024
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /opt/vm2api/vms:/opt/vm2api/vms
+      - /opt/vm2api/data:/opt/vm2api/data
+      - /opt/vm2api/bin:/opt/vm2api/bin
+      - /opt/vm2api/share:/opt/vm2api/share
+      - /opt/vm2api/config:/opt/vm2api/src/config
+    healthcheck:
+      test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:3187/healthz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 180s
+    labels:
+      com.centurylinklabs.watchtower.enable: 'false'
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'

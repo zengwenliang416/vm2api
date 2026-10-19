@@ -1,0 +1,33 @@
+when:
+  - event: [push, manual]
+    branch: main
+
+labels:
+  location: production-80
+  repo: zengwenliang416/vm2api
+
+steps:
+  - name: deployment-contract-tests
+    image: node:22-bookworm-slim
+    commands:
+      - npm ci --ignore-scripts
+      - node --test test/unit/auth-scheme.test.mjs test/unit/config-public-url.test.mjs test/unit/panel-public-boot.test.mjs test/unit/docker-control-image.test.mjs test/unit/docker-slot-cpu.test.mjs test/unit/docker-slot-memory.test.mjs
+      - node --check deploy/production/smoke.mjs
+  - name: build
+    image: docker:29-cli
+    depends_on: [deployment-contract-tests]
+    environment:
+      DOCKER_CONFIG: /opt/vm2api/docker-client
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /opt/vm2api:/opt/vm2api
+    commands:
+      - sh deploy/production/build.sh
+  - name: deploy
+    image: docker:29-cli
+    depends_on: [build]
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /opt/vm2api:/opt/vm2api
+    commands:
+      - sh deploy/production/deploy.sh
